@@ -1,136 +1,39 @@
-from airtable_utils import get_records, update_record, update_perks_info
-from web_utils import is_url_alive, scraper_beautiful_soup
-from llm_extractors import gpt_extractor
-from llm_extractors.gpt_extractor import gpt_extract_info
+import os
 import json
 import time
-import requests
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
-from bs4 import BeautifulSoup
-import requests
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import config
-import os
-import requests
-import json
-from openai import OpenAI
-from llm_extractors.perplexity_extractor import extract_perk_info
+from src.web_utils import scraper_beautiful_soup, access_page_with_cookies, is_fake_404, get_url_status_code
+from src.airtable_utils import get_records, update_record, update_perks_info
+from src.gpt_extractor import gpt_extract_info
+from src.perplexity_extractor import extract_perk_info
+
+# get perplexity API key and add it to the environment variables
 perplexity_api_key = os.environ.get(config.PERPLEXITY_API_KEY)
 
 
-# deals with pages that have cookies to allow scraping
-def access_page_with_cookies(url):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+def print_hello():
+    """Print a concise and visually appealing explanation of the program."""
     
-    driver = webdriver.Chrome(options=chrome_options)
-    
-    try:
-        driver.get(url)
-        
-        try:
-            cookie_button = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Accept') or contains(text(), 'agree') or contains(text(), 'AGREE')]"))
-            )
-            cookie_button.click()
-            print("OK: Accepted cookies")
-        except:
-            print("INFO: No cookie banner detected")
-        
-        page_source = driver.page_source
-        if is_fake_404(page_source):
-            print("ERROR: Detected 404-like error inside page (Selenium)")
-            return 404
-        
-        return 200
-    except Exception as e:
-        print(f"INFO: Selenium failed: {e}")
-        return None
-    finally:
-        driver.quit()
-
-# checks if pages with 200 code are in reality active
-def is_fake_404(html_text):
-    soup = BeautifulSoup(html_text, "html.parser")
-    
-    # Check <title>
-    if soup.title and any(word in soup.title.text.lower() for word in ["404", "page not found", "not found", "error"]):
-        return True
-    
-    # Check main heading
-    h1 = soup.find("h1")
-    if h1 and any(word in h1.text.lower() for word in ["404", "page not found", "not found", "error"]):
-        return True
-    
-    # Optional: check for known error container divs/classes
-    error_keywords = ["error-page", "not-found", "404"]
-    for keyword in error_keywords:
-        if soup.find(class_=lambda x: x and keyword in x):
-            return True
-    
-    return False
-
-# gets the status code from each page
-def get_url_status_code(url):
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/112.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-    }
-    
-    session = requests.Session()
-    session.headers.update(headers)
-
-    try:
-        # HEAD request first
-        response = session.head(url, allow_redirects=True, timeout=5)
-        
-        # If HEAD gives bad result, retry GET anyway
-        if response.status_code >= 400:
-            print("ERROR: HEAD request failed or returned error, retrying with GET...")
-            response = session.get(url, allow_redirects=True, timeout=10)
-
-        # After GET:
-
-        if response.status_code == 404:
-            print("ERROR: 404 Not Found (confirmed by requests)")
-            return 404
-
-        if 400 <= response.status_code < 600 and response.status_code not in [401, 403, 405]:
-            print(f"ERROR: HTTP error {response.status_code} (confirmed by requests)")
-            return response.status_code
-
-        # If GET gives suspicious access issue
-        if response.status_code in [401, 403, 405]:
-            print("ERROR: Access issue detected (GET), trying with Selenium...")
-            selenium_result = access_page_with_cookies(url)
-            return selenium_result
-        
-        # If 200 OK, double-check page content
-        if is_fake_404(response.text):
-            print("ERROR: Detected 404-like error inside page (GET content)")
-            return 404
-        
-        return response.status_code
-    except requests.RequestException as e:
-        print(f"ERROR: Requests failed: {e}")
-        # As fallback, use Selenium
-        return access_page_with_cookies(url)
+    print("\033[1;36m🔍 PERKS DATABASE UPDATER\033[0m")
+    print("\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m")
+    print("\033[1mPROCESS FLOW:\033[0m")
+    print("  1. \033[1;32mFetch records\033[0m from Airtable perks database")
+    print("  2. \033[1;32mVerify URL status\033[0m (active/inactive) for each perk")
+    print("  3. \033[1;32mUpdate status in Airtable\033[0m for any changed perks")
+    print("  4. \033[1;32mScrape active websites\033[0m using two methods:")
+    print("     - BeautifulSoup + GPT-4o extraction")
+    print("     - Perplexity API with subpage crawling")
+    print("  5. \033[1;32mCombine results\033[0m from both scraping methods")
+    print("  6. \033[1;32mUpdate Airtable\033[0m with the combined perk information")
+    print("\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m")
+    print("\033[1mEXTRACTED DATA:\033[0m")
+    print("  • Provider description")
+    print("  • What you get")
+    print("  • How to get it")
+    print("  • Monetary value")
+    print("\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m")
+    print("\n\n")
 
 # main status processing logic - loop over airtable rows
 def process_records(records):
@@ -293,16 +196,17 @@ def scrap_website(records):
         bs_page_text = scraper_beautiful_soup(perk_url)
         gpt_extraction = gpt_extract_info(bs_page_text)
         results_bs_gpt[perk_name] = gpt_extraction
+        print_perks(gpt_extraction)
 
         # SCRAPER 2
-        print("Analysing with method 2 - perplexity")        
+        print("\nAnalysing with method 2 - perplexity")        
         results_perplexity = extract_perk_info(
             url=perk_url,
             perplexity_api_key=perplexity_api_key,
             crawl_subpages=True,
-            max_subpages=5
+            max_subpages=10
         )
-        #print("results_perplexity = ", results_perplexity)
+        print_perks(results_perplexity)
         
         # Combine results of both scraping methods
         combined_results = combine_perk_dicts(results_perplexity, results_bs_gpt)
@@ -312,7 +216,10 @@ def scrap_website(records):
         
     return all_results
 
+
 if __name__ == "__main__":
+
+    print_hello()
 
     process_records_flag = 0
 
@@ -338,8 +245,7 @@ if __name__ == "__main__":
     records_active = [item for item in records if item['fields'].get('Name') in perks_active]
 
     # scrape the active websites to update information: 
-    scraped_info = scrap_website(records_active[:3])
-    print(scraped_info)
+    scraped_info = scrap_website(records_active)
 
     # see how many websites were scraped successfully
     # code here

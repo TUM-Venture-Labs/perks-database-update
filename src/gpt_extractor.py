@@ -37,7 +37,17 @@ import config
 
 client = OpenAI(api_key=config.OPENAI_API_KEY)
 
+
 def gpt_extract_info(text):
+    # Handle case when text is None
+    if text is None:
+        return {
+            "Brief description of the provider": "No content",
+            "What you get": "No content",
+            "How to get it": "No content",
+            "Value": "No content"
+        }
+    
     # Detect if scraping was blocked
     blocked_keywords = ["blocked", "access denied", "forbidden", "403", "captcha", "not authorized"]
     was_blocked = any(keyword.lower() in text.lower() for keyword in blocked_keywords)

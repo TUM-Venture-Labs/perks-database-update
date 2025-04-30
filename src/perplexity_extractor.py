@@ -82,7 +82,7 @@ def extract_perk_info(url: str, perplexity_api_key: Optional[str] = None, crawl_
         subpages = find_subpages(url, max_pages=max_subpages)
         
         for idx, subpage_url in enumerate(subpages):
-            print(f"Scraping subpage {idx+1}/{len(subpages)}: {subpage_url}")
+            #print(f"Scraping subpage {idx+1}/{len(subpages)}: {subpage_url}")
             subpage_text = scrape_website_with_selenium(subpage_url)
             if subpage_text:
                 subpage_info[subpage_url] = {
@@ -285,7 +285,7 @@ def scrape_website_with_selenium(url: str) -> str:
                         EC.element_to_be_clickable((By.XPATH, pattern))
                     )
                     cookie_button.click()
-                    print(f"Clicked cookie banner using pattern: {pattern}")
+                    #print(f"Clicked cookie banner using pattern: {pattern}")
                     time.sleep(1)
                     break
                 except (TimeoutException, NoSuchElementException):

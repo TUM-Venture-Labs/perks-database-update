@@ -72,6 +72,7 @@ def update_perks_info(scraped_info):
     Returns:
         dict: Results with status of each update operation
     """
+    print(f"\n{'-' * 75}\nUpdating perks info on Airtable...\n{'-' * 75}")
     results = {}
     
     for company_name, perk_info in scraped_info.items():
