@@ -1,4 +1,4 @@
-from airtable_utils import get_records, update_record
+from airtable_utils import get_records, update_record, update_perks_info
 from web_utils import is_url_alive, scraper_beautiful_soup
 from llm_extractors import gpt_extractor
 from llm_extractors.gpt_extractor import gpt_extract_info
@@ -20,11 +20,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import config
 import os
-from scrape_analyze import scrape_with_firecrawl
 import requests
 import json
 from openai import OpenAI
-
+from llm_extractors.perplexity_extractor import extract_perk_info
+perplexity_api_key = os.environ.get(config.PERPLEXITY_API_KEY)
 
 
 # deals with pages that have cookies to allow scraping
@@ -204,7 +204,70 @@ def process_records(records):
 
     return perks_wo_link, perks_active, perks_inactive, perks_updated
 
+# two methods for scraping are used which return dicts: this method combines both dicts into 1
+def combine_perk_dicts(dict1, dict2):
+    """
+    Combine two perk information dictionaries into a single dictionary
+    with the most comprehensive information.
+    
+    Args:
+        dict1: First dictionary with perk information
+        dict2: Second dictionary with perk information
+        
+    Returns:
+        A combined dictionary with the best information from both sources
+    """
+    # Define standard keys for our output
+    standard_keys = [
+        "Brief description of the provider",
+        "What you get",
+        "How to get it",
+        "Value"
+    ]
+    
+    # Create mapping for possible variations in key names
+    key_mapping = {
+        "Brief description of the provider": ["Brief description of the provider", "Provider Description"],
+        "What you get": ["What you get", "What You Get"],
+        "How to get it": ["How to get it", "How To Get It"],
+        "Value": ["Value", "Money Value"]
+    }
+    
+    # Initialize result dictionary
+    result = {}
+    
+    # Process each standard key
+    for std_key in standard_keys:
+        # Get all possible key variations
+        possible_keys = key_mapping[std_key]
+        
+        # Get values from both dictionaries if they exist
+        values = []
+        for key in possible_keys:
+            if key in dict1 and dict1[key] not in ["Not found", "Error parsing", ""]:
+                values.append(dict1[key])
+            if key in dict2 and dict2[key] not in ["Not found", "Error parsing", ""]:
+                values.append(dict2[key])
+        
+        # Choose the best value
+        if values:
+            # For description fields, choose the longest one
+            if std_key in ["Brief description of the provider", "What you get", "How to get it"]:
+                result[std_key] = max(values, key=len)
+            # For value field, prefer the one with $ if available
+            elif std_key == "Value":
+                dollar_values = [v for v in values if '$' in str(v)]
+                if dollar_values:
+                    result[std_key] = dollar_values[0]
+                else:
+                    result[std_key] = values[0]
+        else:
+            # If no good value found, use "Not found"
+            result[std_key] = "Not found"
+    
+    return result
 
+# recieves all active perks, scrapes the websites and returns a dict with the desired info
 def scrap_website(records):
     
     def print_perks(perks):
@@ -214,34 +277,40 @@ def scrap_website(records):
     print("\nNumber of active perks to be scraped: ", len(records))
 
     # filter 'records' to consider only the active perks
-    results = {}
+    results_bs_gpt = {}
+    results_perplexity = {}
+    all_results = {}
 
     for record in records:
         # extract information from argument records
         fields = record.get('fields', {})
         perk_name = fields.get("Name")
         perk_url = fields.get("Link")
-        print(f'\nAnalysing perk: {perk_name}')
+        print(f"\n{'-' * 75}\nAnalyzing perk: {perk_name}\n{'-' * 75}")
 
         # SCRAPER 1: BeautifulSoup - scrape the url's text with beautiful soup
+        print("Analysing with method 1 - beautiful soup + chatGPT")
         bs_page_text = scraper_beautiful_soup(perk_url)
-        #print(bs_page_text)
+        gpt_extraction = gpt_extract_info(bs_page_text)
+        results_bs_gpt[perk_name] = gpt_extraction
 
         # SCRAPER 2
-        #fc_page_text = scraper_firecrawl(perk_url)
-
-        # SCRAPER 3
-        #ppx_page_text = scraper_perplexity(perk_url)
+        print("Analysing with method 2 - perplexity")        
+        results_perplexity = extract_perk_info(
+            url=perk_url,
+            perplexity_api_key=perplexity_api_key,
+            crawl_subpages=True,
+            max_subpages=5
+        )
+        #print("results_perplexity = ", results_perplexity)
         
-        # Extract information using GPT
-        gpt_extraction = gpt_extract_info(bs_page_text)
-        results[perk_name] = gpt_extraction
-        #print("BEAUTIFULSOUP:")
-        print_perks(gpt_extraction)
-
-
-
-    return results
+        # Combine results of both scraping methods
+        combined_results = combine_perk_dicts(results_perplexity, results_bs_gpt)
+        print(f'\nCombined result of both scraping methods:')
+        print_perks(combined_results)
+        all_results[perk_name] = combined_results
+        
+    return all_results
 
 if __name__ == "__main__":
 
@@ -269,4 +338,12 @@ if __name__ == "__main__":
     records_active = [item for item in records if item['fields'].get('Name') in perks_active]
 
     # scrape the active websites to update information: 
-    scrap_website(records_active[:3])
+    scraped_info = scrap_website(records_active[:3])
+    print(scraped_info)
+
+    # see how many websites were scraped successfully
+    # code here
+
+    # update airtable with the new info
+    update_perks_info(scraped_info)
+

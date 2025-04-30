@@ -132,5 +132,5 @@ mlruns/
 .DS_Store
 Thumbs.db 
 
-
+# Ignore API keys on config
 config.py

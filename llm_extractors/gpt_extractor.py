@@ -1,3 +1,35 @@
+"""INFORMATION:
+Core Function: gpt_extract_info() processes text to extract structured perk information
+
+Scraping Detection:
+1. Identifies if web scraping was blocked using keyword detection
+2. Checks for terms like "blocked", "access denied", "forbidden", "403", etc.
+3. Automatically returns "Blocked" for all fields if blocking is detected
+
+Information Extraction:
+1. Uses GPT-4o to analyze text content when not blocked
+2. Extracts four specific fields:
+
+Provider description (brief company overview)
+1. What you get (summary of the perk/discount)
+2. How to get it (access instructions)
+3. Value (financial worth in USD/EUR)
+
+Prompt Engineering:
+1. Uses a carefully structured prompt with explicit field definitions
+2. Includes clear instructions to avoid inventing missing information
+3. Specifies the exact JSON output format required
+
+Error Handling:
+1. Uses regex to extract JSON from GPT's response
+2. Returns uniform error messages if JSON parsing fails
+3. Maintains consistent output structure even when errors occur
+
+Data Validation:
+1. Ensures missing information is marked with "Not found"
+2. Maintains consistent output formatting for downstream processing
+3. Uses low temperature (0.2) for more deterministic responses
+"""
 import re
 import json
 from openai import OpenAI
