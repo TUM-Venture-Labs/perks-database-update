@@ -217,11 +217,90 @@ def scrap_website(records):
     return all_results
 
 
+
+def handle_scraping(flag, records_active, file_path="results/scraped_info.json"):
+    """
+    Either run the scraping function and save the results directly to a JSON file,
+    or read previously scraped data from the JSON file.
+    
+    Args:
+        flag (int): 1 to run scraping, 0 to read from file
+        records_active: Records to scrape
+        file_path (str): Path to save/read the scraped data
+        
+    Returns:
+        dict: The scraped information
+    """
+    if flag == 1:
+        # Run the scraping function
+        scraped_info = scrap_website(records_active)
+        
+        # Save the scraped information directly to a JSON file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(scraped_info, f, indent=2)
+        print(f"Data successfully saved to {file_path}")
+        
+        # Also save in the requested text format
+        save_formatted_text(scraped_info, file_path.replace('.json', '.txt'))
+        
+        return scraped_info
+    
+    elif flag == 0:
+        # Read the scraped information from the JSON file
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                scraped_info = json.load(f)
+            print(f"Data successfully loaded from {file_path}")
+            
+            # Also save in the requested text format (in case it doesn't exist)
+            save_formatted_text(scraped_info, file_path.replace('.json', '.txt'))
+            
+            return scraped_info
+        else:
+            print(f"Warning: File {file_path} does not exist.")
+            return {}
+    
+    else:
+        raise ValueError("Flag must be either 0 or 1")
+
+def save_formatted_text(data, text_file_path):
+    """
+    Save data to a text file with the requested format.
+    
+    Args:
+        data (dict): The scraped information
+        text_file_path (str): Path to save the formatted text
+    """
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(text_file_path), exist_ok=True)
+    
+    with open(text_file_path, 'w', encoding='utf-8') as f:
+        for name, details in data.items():
+            f.write(f"Name: {name}\n")
+            
+            if 'Brief description of the provider' in details:
+                f.write(f"Brief description of the provider: {details['Brief description of the provider']}\n")
+            
+            if 'What you get' in details:
+                f.write(f"What you get: {details['What you get']}\n")
+                
+            if 'How to get it' in details:
+                f.write(f"How to get it: {details['How to get it']}\n")
+                
+            if 'Value' in details:
+                f.write(f"Value: {details['Value']}\n")
+            
+            f.write("\n")  # Add a blank line between entries
+    
+    print(f"Formatted text saved to {text_file_path}")
+
+
 if __name__ == "__main__":
 
     print_hello()
 
     process_records_flag = 0
+    scrap_links_flag = 1
 
     # extract perk database table from airtable
     records = get_records()
@@ -232,20 +311,20 @@ if __name__ == "__main__":
         perks_wo_link, perks_active, perks_inactive, _ = process_records(records)
 
         # Write it to a file (each item on a new line)
-        with open('perks_active.txt', 'w') as f:
+        with open('results/perks_active.txt', 'w') as f:
             for item in perks_active:
                 f.write(item + '\n')
 
     else:
         # Read the list of active perk to avoid reruning the whole analysis 
-        with open('perks_active.txt', 'r') as f:
+        with open('results/perks_active.txt', 'r') as f:
             perks_active = [line.strip() for line in f]
 
     # filter all the records from airtable - we only scratch the ones which are active
     records_active = [item for item in records if item['fields'].get('Name') in perks_active]
 
-    # scrape the active websites to update information: 
-    scraped_info = scrap_website(records_active)
+    #
+    scraped_info = handle_scraping(scrap_links_flag, records_active)
 
     # see how many websites were scraped successfully
     # code here

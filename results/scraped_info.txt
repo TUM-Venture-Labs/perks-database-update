@@ -1,0 +1,324 @@
+Name: GitHub
+Brief description of the provider: GitHub is a platform that provides tools and integrations for building, scaling, and delivering secure software.
+What you get: Up to 20 seats of GitHub Enterprise free for one year and 50% off in year two; 50% off GitHub Advanced Security in year one and 25% off in year two; access to a global startup network and exclusive events.
+How to get it: Sign up for a GitHub Enterprise trial with personal accounts, ensure a valid payment method is on file, and submit your application. If approved, benefits will be applied.
+Value: Not found
+
+Name: SAP
+Brief description of the provider: SAP is a global company providing enterprise software solutions to manage business operations and customer relations.
+What you get: Access to a cloud-native solution with partnership benefits for up to six months for free.
+How to get it: Not found
+Value: Not found
+
+Name: Deutsche Leasing
+Brief description of the provider: Deutsche Leasing is a company that offers asset finance solutions.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: MongoDB
+Brief description of the provider: MongoDB is a company that provides a global cloud database for modern applications, offering a fully managed service on AWS, Azure, and Google Cloud.
+What you get: Free MongoDB Atlas credits, valid for 12 months, access to expert technical advisors, and engagement with MongoDB's developer community.
+How to get it: Apply to the MongoDB for Startups program by providing necessary information such as email address, company details, and agreeing to terms and conditions.
+Value: Not found
+
+Name: Telekom TechBoost
+Brief description of the provider: Telekom Deutschland GmbH is one of the world's leading service providers in the telecommunications and information technology industry.
+What you get: Marketing support, cloud credits, sales support, and special conditions for Telco & IT.
+How to get it: Apply to the TechBoost program by ensuring your startup meets the specified requirements and submitting an application.
+Value: Not found
+
+Name: Altair
+Brief description of the provider: Altair, now part of Siemens, offers a comprehensive AI-powered portfolio of industrial software for simulation, high performance computing, data science, and artificial intelligence.
+What you get: Access to tailored packages for product development, data analysis, artificial intelligence, and high-performance computing, including online training and support.
+How to get it: Apply through the Altair website by providing company and contact information.
+Value: Not found
+
+Name: IBM Startup Program
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Autenti
+Brief description of the provider: Autenti is a company that offers digital document management services, including e-delivery, e-signatures, and qualified electronic signatures.
+What you get: Create an account free of charge without requiring a payment card.
+How to get it: Create an account by providing personal and organization details on the Autenti website.
+Value: Not found
+
+Name: LiveChat
+Brief description of the provider: LiveChat® is a leading AI live chat software designed for B2B SaaS companies and ecommerce stores, helping businesses connect with customers, provide real-time support, and drive sales.
+What you get: A 30-day free trial of LiveChat® and a 30% discount on the first payment after the trial.
+How to get it: Sign up for a free trial on the LiveChat® website; no credit card is required.
+Value: Not found
+
+Name: Alconost
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Microsoft Azure
+Brief description of the provider: Microsoft für Startups is designed to support founders ready to launch their businesses with benefits and support to develop their big ideas.
+What you get: Up to $150,000 in Azure credits, access to AI and development tools, expert guidance, and unlimited 1:1 sessions with Azure technicians and business experts.
+How to get it: Apply in a few minutes, activate Azure within 3 months of onboarding, and join Microsoft for Startups to access exclusive benefits and cloud credits.
+Value: Up to $150,000 USD
+
+Name: Zendesk
+Brief description of the provider: Zendesk is a company that provides customer service and engagement software solutions.
+What you get: Qualified startups receive unlimited access to all Zendesk products and training for six months for free.
+How to get it: Apply to the Zendesk for Startups program, ensuring you meet the eligibility criteria of being a new Zendesk customer, having fewer than 50 employees, and being at or below the Series-A funding round.
+Value: Not found
+
+Name: Allcancode
+Brief description of the provider: Allcancode is a startup company that acts as a technology partner to help other startups bring their products to market quickly.
+What you get: Members of the XPreneurs community receive a 15% discount on all services, free CTO advice, and exclusive access to workshops.
+How to get it: Be a member of the XPreneurs community, either currently in the program or as an alumni, to be eligible for the benefits.
+Value: Not found
+
+Name: MixPanel
+Brief description of the provider: Mixpanel is an industry leader in analytics, providing tools to help startups find product-market fit faster.
+What you get: Startups receive their first year of Mixpanel for free, including access to a full analytics suite, Session Replay, and more, with no feature limits.
+How to get it: Eligible startups can enroll by meeting criteria such as not having been on a paid Mixpanel plan, being founded less than 5 years ago, and having raised up to $8M USD in total funding.
+Value: Not found
+
+Name: ZenDesk
+Brief description of the provider: Zendesk provides tools to deliver better customer experiences and helps businesses grow strategically as they scale.
+What you get: 6 months of Zendesk Suite and Zendesk Sales CRM for free, onboarding support, office hours with the startups success team, and access to community events and educational resources.
+How to get it: Apply to the Zendesk for Startups program and meet the eligibility criteria of being a new Zendesk customer with fewer than 50 employees and having raised funding that does not exceed Series B.
+Value: Not found
+
+Name: Tally
+Brief description of the provider: Tally is a company that offers an online form builder service.
+What you get: A discount on the Tally Pro plan for startups.
+How to get it: Apply for a startup discount and use a partner code if you are a member of a partner organization.
+Value: Not found
+
+Name: Bouncer
+Brief description of the provider: Usebouncer is a company that offers email verification services to help businesses maintain clean and effective mailing lists.
+What you get: A 20% discount on email verification services for pay-as-you-go purchases.
+How to get it: The discount is available until May 9 for XPRENEURS's friends.
+Value: Not found
+
+Name: IONOS
+Brief description of the provider: IONOS is a hosting provider offering a range of services including domains, websites, servers, and cloud solutions.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: SectorPi
+Brief description of the provider: SectorPi is a company that offers assistance in efficiently applying for and managing research and development funding.
+What you get: A free initial consultation to analyze potential funding opportunities.
+How to get it: Contact SectorPi for a free initial consultation by sending a message or booking a meeting directly with Victoria Hoffmann.
+Value: Not found
+
+Name: Remote
+Brief description of the provider: Remote provides global HR solutions and employment tools for distributed teams, helping businesses hire, manage, and pay employees and contractors worldwide.
+What you get: A special 20% discount on Remote's products, including Employer of Record, Global Payroll, Contractor Management, HRIS and Perform, and Remote Equity services.
+How to get it: Book a demo and apply a valid promo code during new customer sign-up to access the discount.
+Value: Not found
+
+Name: TwoStay
+Brief description of the provider: Twostay offers sustainable coworking spaces in Germany, focusing on community and networking.
+What you get: Access to coworking spaces, meeting rooms, and multifunctional rooms with plans starting from 6€.
+How to get it: Choose a space, select a plan, and check-in with a QR code or key lock code.
+Value: Not found
+
+Name: UnternehmerTUM
+Brief description of the provider: Typeform is a company that specializes in online form building and surveys.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Vonage
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Notion
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Userlist
+Brief description of the provider: Userlist is a SaaS tool for email automation and customer data management.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: DigitalOcean Hatch
+Brief description of the provider: DigitalOcean is a cloud infrastructure provider that offers scalable virtual machines and other cloud services to help startups build, launch, and scale their applications.
+What you get: Access to cloud infrastructure with Hatch credits, expert guidance, 24/7 support, networking opportunities, and discounted rates on services like GPU usage.
+How to get it: Apply for the Hatch program by creating a DigitalOcean team account with a corporate email and meeting eligibility criteria such as affiliation with an approved accelerator, incubator, or VC firm.
+Value: Not found
+
+Name: Finom
+Brief description of the provider: Finom is a financial service that combines a banking business account, invoicing, and accounting software integration.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: WorkMotion
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Make.com
+Brief description of the provider: Make is a platform that allows users to build and automate tasks and workflows using a visual interface.
+What you get: 3 months of the Core plan for free.
+How to get it: Sign up for the offer specifically available for TUM Venture Labs.
+Value: Not found
+
+Name: BesserDrei
+Brief description of the provider: Besserdrei is specialized in producing high-quality content for the B2B sector, focusing on product films, project documentation, and investor films for innovative tech companies.
+What you get: Discounted video production packages for start-ups, including project, product, or image films with various features such as interviews, animated graphics, and more.
+How to get it: Not found
+Value: 3,300 € instead of 3,900 € (-15%), 5,400 € instead of 6,800 € (-20%), from 12,000 € (-20%)
+
+Name: DoxyChain
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Stax
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Secret
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Recruitee
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: TUM Entrepreneurship Guide
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Lexoffice
+Brief description of the provider: Lexware offers comprehensive office software solutions for businesses, including accounting, invoicing, and payroll management.
+What you get: 50% discount on Lexware Office software versions for the first 3 months.
+How to get it: Select a version, optionally add payroll, and proceed to checkout.
+Value: Not found
+
+Name: Demodesk
+Brief description of the provider: Demodesk is a company that offers AI-driven solutions to enhance sales processes and reduce administrative tasks.
+What you get: Access to AI Sales Agents that record and transcribe sales calls, automate CRM updates, and provide real-time insights.
+How to get it: Sign up and start using the service with no setup required; a 14-day free trial is available.
+Value: Not found
+
+Name: Personio
+Brief description of the provider: Personio is an intelligent HR platform that automates tasks, adapts workflows, and provides insights from HR data.
+What you get: Access to a comprehensive HR platform that includes features like time tracking, payroll, recruiting, and compliance management.
+How to get it: Request a free demo or test the platform for free by contacting Personio through their website.
+Value: Not found
+
+Name: HubSpot
+Brief description of the provider: HubSpot is a company that provides software products for inbound marketing, sales, and customer service.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Makerspace
+Brief description of the provider: MakerSpace is a community and service provider offering access to workshops and courses for innovation and prototyping.
+What you get: Access to MakerSpace for participants of UnternehmerTUM formats, including workshops and courses.
+How to get it: Apply through the provided form and activate membership at the front desk.
+Value: Not found
+
+Name: AWS
+Brief description of the provider: Amazon Web Services (AWS) is a subsidiary of Amazon providing on-demand cloud computing platforms and APIs.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Miro
+Brief description of the provider: Miro is a collaborative online whiteboard platform designed to help teams work together more effectively.
+What you get: Startups can receive either $1000 in credit if they work with a global partner or $500 in credit if they do not.
+How to get it: Sign up for a free Miro account and apply for the Miro Startup Program by answering a few eligibility questions.
+Value: $1000 or $500
+
+Name: Ecomply
+Brief description of the provider: ECOMPLY is a data protection management system offering tools for DPOs to automate and streamline compliance tasks.
+What you get: Access to a suite of tools for data protection management, including audit assistance, incident tracking, and records of processing activities.
+How to get it: Not found
+Value: Not found
+
+Name: tm matchboxx
+Brief description of the provider: Matchboxx is a tool for evaluating possible team constellations based on personality assessments.
+What you get: A detailed assessment of areas of compatibility and potential tension within a team based on personality features.
+How to get it: Not found
+Value: Not found
+
+Name: Matchbox
+Brief description of the provider: tm matchboxx is a service that helps teams evaluate their cooperation basis by comparing personality features to identify synergies and tensions.
+What you get: A free assessment summary of team personality constellations, with options for detailed reports and coaching sessions at a cost.
+How to get it: Teammates complete a 15-minute assessment indicating agreement with 65 statements, after which tm matchboxx analyzes and provides results.
+Value: Not found
+
+Name: Mathworks
+Brief description of the provider: MathWorks supports startup accelerators and incubators worldwide with benefits and sponsorships.
+What you get: One year of free access to MATLAB, Simulink, and over 100 add-on toolboxes, engineering support from MathWorks experts, access to online training and videos, access to MATLAB Central, and opportunities to promote your product through MathWorks startup promotions program.
+How to get it: If you are an accelerator or incubator, contact MathWorks at startupaccelerators@mathworks.com to discuss support for your startups.
+Value: Not found
+
+Name: Your Service?
+Brief description of the provider: Tally is a free, intuitive online form builder that allows users to create forms without coding.
+What you get: Unlimited forms and submissions for free, with advanced features like conditional logic, signatures, and file uploads.
+How to get it: You can start creating your first form right away without signing up, or create an account on their signup page.
+Value: Not found
+
+Name: We Love No Code
+Brief description of the provider: Toptal is a company that connects clients with expertly vetted freelance no-code and low-code developers for mission-critical projects.
+What you get: Access to the top 3% of no-code and low-code developers, with a no-risk trial period where you only pay if satisfied.
+How to get it: Speak with a Toptal client advisor to discuss your needs, and within days, you'll be matched with the right developers for your project.
+Value: Not found
+
+Name: SEM Rush
+Brief description of the provider: Semrush is a comprehensive digital marketing platform offering tools for SEO, content marketing, competitor research, PPC, and social media marketing.
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: StaffBoard
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: Lightbringer
+Brief description of the provider: Not found
+What you get: Not found
+How to get it: Not found
+Value: Not found
+
+Name: CloudFlare
+Brief description of the provider: Cloudflare is a company that helps startups connect, protect, and build Internet and SaaS applications.
+What you get: Up to $250,000 in Cloudflare credits to build your startup, including services like unmetered DDoS mitigation, global CDN, and more.
+How to get it: Sign up for a free account with Cloudflare, fill out the application form, and check your inbox for confirmation of activation.
+Value: $250,000
+
+Name: Stripe
+Brief description of the provider: Stripe is a fully integrated platform designed to help startups launch, find product-market fit, and scale revenue.
+What you get: $1,500 in credits to offset fees for Stripe services or waived fees on $50,000 in processing volume.
+How to get it: Apply for the Stripe benefits program for XPRENEURS.
+Value: $1,500
+
+Name: Google Cloud
+Brief description of the provider: Google Cloud is a suite of cloud computing services that runs on the same infrastructure that Google uses internally for its end-user products.
+What you get: $300 in free credits and free usage of over 20 products.
+How to get it: Sign up as a new customer to Google Cloud.
+Value: $300
+
