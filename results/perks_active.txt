@@ -23,9 +23,8 @@ IONOS
 SectorPi
 Remote
 TwoStay
-UnternehmerTUM
-Vonage
 Notion
+ContarctBook
 Userlist
 DigitalOcean Hatch
 Finom
@@ -43,8 +42,6 @@ Amazon Business
 Personio
 HubSpot
 Makerspace
-UFI
-
 AWS
 AWS 
 Miro

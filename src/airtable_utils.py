@@ -63,15 +63,7 @@ def update_record(record_id, fields):
 
 # updates fields on airtable with the info extracted from crawling (perk description, value, etc)
 def update_perks_info(scraped_info):
-    """
-    Updates Airtable with scraped perk information.
-    
-    Args:
-        scraped_info (dict): Dictionary with company names as keys and perk info dictionaries as values
-    
-    Returns:
-        dict: Results with status of each update operation
-    """
+
     print(f"\n{'-' * 75}\nUpdating perks info on Airtable...\n{'-' * 75}")
     results = {}
     
