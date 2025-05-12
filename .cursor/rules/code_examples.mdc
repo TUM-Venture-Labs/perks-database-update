@@ -1,0 +1,199 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Minimal Tool Examples
+
+## Poetry Setup (Python 3.11)
+```bash
+poetry init
+poetry add fastapi uvicorn[standard] openai firecrawl-py exa-py pydantic python-dotenv
+poetry run uvicorn main:app --reload
+```
+
+## FastAPI
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
+```
+
+## Firecrawl
+```python
+from firecrawl import FirecrawlApp, ScrapeOptions
+
+app = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
+
+# Scrape a website with proper options structure
+data = app.scrape_url(
+    'https://example.com',
+    formats=['markdown', 'html']
+)
+
+# Crawl with newer API structure
+crawl_status = app.crawl_url(
+    'https://example.com',
+    limit=100,
+    scrape_options=ScrapeOptions(formats=['markdown', 'html'])
+)
+```
+
+## Exa AI
+```python
+from exa_py import Exa
+import os
+exa = Exa(api_key=os.getenv("EXA_API_KEY"))
+
+# Basic search
+results = exa.search("AI startups funding", num_results=5)
+print(results.results)
+
+# Search with content
+results = exa.search_and_contents("latest AI news", num_results=3)
+print(results.results)
+```
+
+## OpenAI Responses API with structured output and developer message
+```python
+from openai import OpenAI
+from pydantic import BaseModel
+
+client = OpenAI()
+
+class CalendarEvent(BaseModel):
+    name: str
+    date: str
+    participants: list[str]
+
+response = client.responses.parse(
+    model="gpt-4.1",
+    input=[
+        {
+            "role": "developer",
+            "content": "Extract the event information."},
+        {
+            "role": "user",
+            "content": "Alice and Bob are going to a science fair on Friday.",
+        },
+    ],
+    text_format=CalendarEvent,
+)
+
+event = response.output_parsed
+```
+
+## Pydantic v2
+
+Here's a perfect example of using Pydantic v2 for data validation and serialization:
+
+```python
+from pydantic import BaseModel, Field, ValidationError
+from typing import List, Optional
+
+class User(BaseModel):
+    id: int = Field(..., description="The unique identifier for the user")
+    name: str = Field(..., min_length=1, max_length=50, description="The user's full name")
+    email: Optional[str] = Field(None, pattern=r"^[\w\.-]+@[\w\.-]+\.\w{2,4}$", description="The user's email address")
+    age: Optional[int] = Field(None, ge=0, le=120, description="The user's age")
+    tags: List[str] = Field(default_factory=list, description="List of tags associated with the user")
+
+# Example usage
+user = User(id=123, name="Alice Smith", email="alice@example.com", age=30, tags=["admin", "user"])
+user_dict = user.model_dump()  # Convert to dictionary
+```
+
+### Key Components
+
+**BaseModel Class**: The foundation for all Pydantic models.
+
+**Field Validations**:
+- Required fields use `...` as placeholder (like `id` and `name`)
+- Optional fields use `None` as default value (`email` and `age`)
+- Field constraints include:
+  - `min_length`/`max_length` for strings
+  - `ge`/`le` (greater/less than or equal) for numbers
+  - `pattern` for regex validation (NOT `regex` which was used in v1)
+
+**Collection Fields**:
+- Use `default_factory` for mutable defaults like lists
+
+**Documentation**:
+- Each field includes a `description` parameter for better documentation
+
+### Important Changes in V2
+
+- Use `pattern` instead of `regex` for string pattern validation
+- Use `model_dump()` instead of `dict()` to serialize the model to a dictionary
+- Improved type hints and validation
+
+### Error Handling
+
+```python
+try:
+    user = User(id=123, name="Alice Smith", email="invalid-email", age=30)
+except ValidationError as e:
+    print(e)  # Will show validation error for invalid email
+```
+
+## Environment Variables
+```python
+# .env file
+OPENAI_API_KEY=sk-...
+FIRECRAWL_API_KEY=fc-...
+EXA_API_KEY=...
+
+# Python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+```
+
+## Complete Main Example
+```python
+# main.py
+from fastapi import FastAPI
+from pydantic import BaseModel
+from openai import OpenAI
+from firecrawl import FirecrawlApp
+from exa_py import Exa
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = FastAPI()
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+firecrawl = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
+exa = Exa(api_key=os.getenv("EXA_API_KEY"))
+
+class PerkRequest(BaseModel):
+    url: str
+    description: str
+
+@app.post("/check-perk")
+async def check_perk(request: PerkRequest):
+    # Scrape URL
+    scraped = firecrawl.scrape_url(request.url, formats=['markdown'])
+    
+    # Search for similar info
+    search_results = exa.search(f"perk details {request.description}", num_results=3)
+    
+    # Analyze with OpenAI
+    response = openai_client.responses.create(
+        model="gpt-4.1",
+        input=f"Analyze this perk: {scraped['markdown'][:1000]}"
+    )
+    
+    return {
+        "analysis": response.output_text,
+        "scraped_content": scraped['markdown'][:500],
+        "search_results": search_results.results[:2]
+    }
+```
