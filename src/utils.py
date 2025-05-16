@@ -1,5 +1,7 @@
 import re
 import os
+import json
+import copy
 import requests
 from openai import OpenAI
 from bs4 import BeautifulSoup
@@ -8,35 +10,39 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import os
+import config
+from langfuse import Langfuse
+from langfuse.callback import CallbackHandler
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from langfuse import Langfuse
 
-from src.gpt_extractor import scrape_website_with_firecrawl
+# get keys for your project from https://cloud.langfuse.com
+os.environ["LANGFUSE_PUBLIC_KEY"] = config.LANGFUSE_PUBLIC_KEY
+os.environ["LANGFUSE_SECRET_KEY"] = config.LANGFUSE_SECRET_KEY
+os.environ["LANGFUSE_HOST"] = config.LANGFUSE_HOST
+os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
+
+os.environ["PERPLEXITY_API_KEY"] = config.PERPLEXITY_API_KEY
+
+# Initialize Langfuse client (prompt management)
+langfuse = Langfuse(
+  secret_key=os.environ["LANGFUSE_SECRET_KEY"],
+  public_key=os.environ["LANGFUSE_PUBLIC_KEY"],
+  host=os.environ["LANGFUSE_HOST"]
+)
+
+from src.gpt_extractor import extract_with_gpt, scrape_website_with_firecrawl
+from src.perplexity_extractor import extract_with_perplexity
+
 
 ############# Handle printing
-def print_hello():
-    """Print a concise and visually appealing explanation of the program."""
-    
-    print("\033[1;36m🔍 PERKS DATABASE UPDATER\033[0m")
-    print("\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m")
-    print("\033[1mPROCESS FLOW:\033[0m")
-    print("  1. \033[1;32mFetch records\033[0m from Airtable perks database")
-    print("  2. \033[1;32mVerify URL status\033[0m (active/inactive) for each perk")
-    print("  3. \033[1;32mUpdate status in Airtable\033[0m for any changed perks")
-    print("  4. \033[1;32mScrape active websites\033[0m using two methods:")
-    print("     - BeautifulSoup + GPT-4o extraction")
-    print("     - Perplexity API with subpage crawling")
-    print("  5. \033[1;32mCombine results\033[0m from both scraping methods")
-    print("  6. \033[1;32mUpdate Airtable\033[0m with the combined perk information")
-    print("\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m")
-    print("\033[1mEXTRACTED DATA:\033[0m")
-    print("  • Provider description")
-    print("  • What you get")
-    print("  • How to get it")
-    print("  • Monetary value")
-    print("\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m")
-    print("\n\n")
-
-
 def print_perks(perks):
+    if perks is None:  
+        print("Error: Perks data is None. No data to display.")
+        return 
+    
     for key, value in perks.items():
         line = f"{key}: {value}"
         print(f'{line[:100]}...')  
@@ -44,10 +50,6 @@ def print_perks(perks):
 
 ############# Logic to analyse URLs
 def is_email(text):
-    """
-    Check if a string is a valid email address using regex pattern.
-    This is more reliable than just checking for '@'.
-    """
     # RFC 5322 compliant email regex pattern (simplified)
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(email_pattern, text))
@@ -59,17 +61,6 @@ def is_url_alive(url):
         return response.status_code == 200
     except Exception:
         return False
-
-
-def scraper_beautiful_soup(url):
-    try:
-        response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        texts = soup.find_all(['h1', 'h2', 'p', 'li'])
-        page_text = "\n".join(t.get_text(strip=True) for t in texts)
-        return page_text
-    except Exception:
-        return 
 
 
 def access_page_with_cookies(url):
@@ -92,10 +83,6 @@ def access_page_with_cookies(url):
         except:
             print("INFO: No cookie banner detected")
         
-        if is_fake_404(url):
-            print("ERROR: Detected 404-like error inside page (Selenium)")
-            return 404
-        
         return 200
     except Exception as e:
         print(f"INFO: Selenium failed: {e}")
@@ -104,82 +91,48 @@ def access_page_with_cookies(url):
         driver.quit()
 
 
-
-def is_fake_404(perk_url):
-    # Scrape the website content
-    scraped_text = scrape_website_with_firecrawl(perk_url)
-    
-    # Skip empty pages or very short content
-    if not scraped_text or len(scraped_text.strip()) < 20:
-        return False
+def is_fake_200(scraped_text):
     
     try:
-        # Expert-designed prompt with detailed context for accurate detection
-        prompt = f"""You're a specialized web content analyzer tasked with detecting two specific types of pages:
 
-        1) FAKE 404 PAGES: Pages that display error messages but don't return an actual HTTP 404 status code
-        2) CLOSED FORMS: Forms, applications, or typeforms that are no longer accepting submissions
+        # Initialize Langfuse CallbackHandler for Langchain (tracing)
+        langfuse_callback_handler = CallbackHandler()
 
-        Analyze the following webpage content extremely carefully and determine if it falls into EITHER category.
+        # Get current production version of prompt
+        langfuse_prompt = langfuse.get_prompt("fake-status-200-identifier")
 
-        For FAKE 404 PAGES, look for:
-        - Error messages ("page not found", "404", "error", etc.)
-        - Missing content indicators
-        - Broken link messaging
-        - Technical error explanations
-        - Apologetic language about content unavailability
+        # Transform into Langchain PromptTemplate 
+        langchain_prompt = ChatPromptTemplate.from_template(
+                langfuse_prompt.get_langchain_prompt(),
+                metadata={"langfuse_prompt": langfuse_prompt},
+            )
 
-        For CLOSED FORMS, look for:
-        - "This form is no longer accepting responses"
-        - "Applications are closed/paused"
-        - "Submissions period has ended"
-        - "We're not currently accepting applications"
-        - "Program is currently on pause"
-        - "Form is currently closed"
-        - "This typeform isn't accepting new responses"
-        - "We will inform you about a new application period"
-        - Any language indicating the form exists but submissions are no longer being accepted
-
-        Respond with EXACTLY ONE WORD:
-        - "YES" if the content matches EITHER a fake 404 page OR a closed form
-        - "NO" if it's a normal, functioning page
-
-        Webpage content to analyze:
-        {scraped_text[:3000]}"""
-
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        response = client.chat.completions.create(
-            model="gpt-4.1-nano",
-            messages=[
-                {"role": "system", "content": "You are a precise webpage status detector that specializes in identifying fake 404 pages and closed submission forms. You only respond with YES or NO."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2
+        #Create Langchain chain based on prompt
+        model = ChatOpenAI(
+            model=langfuse_prompt.config["model"], 
+            temperature=str(langfuse_prompt.config["temperature"])
         )
         
-        result = response.choices[0].message.content.strip().upper()
-        
+        chain = langchain_prompt | model
+
+        # we pass the callback handler to the chain to trace the run in Langfuse
+        response = chain.invoke(input=scraped_text,config={"callbacks":[langfuse_callback_handler]})
+                
         # Log identified patterns for debugging
-        if result == "YES":
-            print(f"{perk_url} => Fake 404/Closed form detected by LLM")
+        if response.content == 404:
+            print(f"   => Fake 404/Closed form detected by LLM")
+            return 404
+        elif response.content == 200:
+            print("OK. Page active")
+            return 200
+        else:
+            print("Unexpected result from Langfuse.")
         
-        return result == "YES"
         
     except Exception as e:
         print(f"Error using GPT API: {e}")
-        # Fallback to basic keyword detection if API fails
-        text_lower = scraped_text.lower()
         
-        # Combined patterns from both categories for simple fallback
-        patterns = [
-            "404", "page not found", "not found", "error-page",
-            "isn't accepting new responses", "form is currently closed", 
-            "submissions are no longer being accepted", "application period is over",
-            "not currently accepting applications", "applications are currently paused",
-            "program is currently on pause"
-        ]
-        
-        return any(pattern in text_lower for pattern in patterns)
+        return 0
 
 
 def get_url_status_code(url):
@@ -220,10 +173,6 @@ def get_url_status_code(url):
             selenium_result = access_page_with_cookies(url)
             return selenium_result
         
-        # If 200 OK, double-check page content
-        if is_fake_404(url):
-            print("ERROR: Detected 404-like error inside page (GET content)")
-            return 404
         
         return response.status_code
     except requests.RequestException as e:
@@ -233,40 +182,174 @@ def get_url_status_code(url):
 
 
 ############# Methods to save to local directory
-def save_formatted_text(data, text_file_path):
-
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(text_file_path), exist_ok=True)
-    
-    with open(text_file_path, 'w', encoding='utf-8') as f:
-        for name, details in data.items():
-            f.write(f"Name: {name}\n")
-            
-            if 'Brief description of the provider' in details:
-                f.write(f"Brief description of the provider: {details['Brief description of the provider']}\n")
-            
-            if 'What you get' in details:
-                f.write(f"What you get: {details['What you get']}\n")
-                
-            if 'How to get it' in details:
-                f.write(f"How to get it: {details['How to get it']}\n")
-                
-            if 'Value' in details:
-                f.write(f"Value: {0 if details['Value'] == 'Not found' else details['Value']}\n")
-
-            f.write("\n")  # Add a blank line between entries
-    
-    print(f"Formatted text saved to {text_file_path}")
-
 def save_perks_status(perks_wo_link, perks_active, perks_inactive, perks_updated):
-    # names of files to save the values
+    # Ensure the results directory exists
+    dir = 'results_perks_update/'
+    os.makedirs(dir, exist_ok=True)
+
+    # Names of files to save the values
     perks_names = ['perks_wo_link', 'perks_active', 'perks_inactive', 'perks_updated']
 
-
     for i, perks in enumerate([perks_wo_link, perks_active, perks_inactive, perks_updated]):
-
-        # Write it to a file (each item on a new line)
-        with open(f'results/{perks_names[i]}.txt', 'w') as f:
+        # Fallback to empty list if None is passed
+        if perks is None:
+            perks = []
+        with open(f'{dir}{perks_names[i]}.txt', 'w', encoding='utf-8') as f:
             for item in perks:
-                f.write(item + '\n')
+                # Only write non-None items, and always write as string
+                if item is not None:
+                    f.write(f"{str(item)}\n")
 
+
+#####################
+# main status processing logic - loop over airtable rows
+def process_records(records, gpt_prompt):
+
+    perks_wo_link  = []
+    perks_w_email  = []
+    perks_active   = []
+    perks_inactive = []
+    perks_updated  = []
+
+    # dict with the info to be scraped and updated on airtable
+    updated_records = {record['id']: record.copy() for record in records}
+
+    # loop over each record (row on airtable)
+    for record in records:
+        fields    = record.get('fields', {})
+        perk_id   = record.get('id')
+        perk_name = fields.get("Name")
+        perk_url  = fields.get("Link")
+        current_status = fields.get("Status", "").lower()  
+        
+        print(f"\n{'-' * 75}\nAnalyzing perk: {perk_name}")
+
+        # Skip if already marked as broken/expired
+        if current_status == "broken/expired":
+            print("INFO: Record already marked as broken/expired. ")
+            # Still count it in the inactive list for reporting
+            perks_inactive.append(perk_name)
+            updated_records[perk_id]['fields']["Status"] = "broken/expired"
+            continue
+
+        # Case 1: No URL available
+        if not perk_url:
+            print("INFO: No URL available on Airtable. ")
+            perks_wo_link.append(perk_name)
+            continue
+        
+        # Case 2: URL is actually an email address
+        if is_email(perk_url):
+            print("INFO: No URL available on Airtable. ")
+            perks_w_email.append(perk_name)
+            perks_wo_link.append(perk_name)
+            continue
+
+        # Case 3: URL available but missing http
+        if not perk_url.startswith(('http://', 'https://')):
+            perk_url = 'http://' + perk_url
+            fields["Link"] = perk_url
+
+        # Check URL status (200 if active)
+        status_code = get_url_status_code(perk_url)
+
+        if status_code == 200:
+            print(f"OK: Link is active (Status Code: {status_code})")
+            
+            if current_status != "active":
+                updated_records[perk_id]['fields']["Status"] = "active"
+                perks_active.append(perk_name)
+                perks_updated.append(perk_name)  # Only append if status changed
+
+            perks_active.append(perk_name)
+
+            # Online scrape the website if the link is active: pass 'results' dict by reference and modify it
+            scrape(updated_records[perk_id]['fields'], gpt_prompt)
+
+        elif status_code is None:
+            print(f"ERROR: Failed to reach URL (Status Code: {status_code})")
+
+            if current_status != "broken/expired":
+                updated_records[perk_id]['fields']["Status"] = "broken/expired"
+                perks_updated.append(perk_name)
+
+            perks_inactive.append(perk_name)
+
+        else:
+            print(f"ERROR: Link is inactive (Status Code: {status_code})")
+
+            if current_status != "broken/expired":
+                updated_records[perk_id]['fields']["Status"] = "broken/expired"
+                perks_updated.append(perk_name)
+
+            perks_inactive.append(perk_name)
+        
+        print(f"{'-' * 75}")
+
+    save_perks_status(perks_wo_link, perks_active, perks_inactive, perks_updated)
+
+    return updated_records
+
+# recieves all active perks, scrapes the websites and returns a dict with the desired info
+def scrape(fields, gpt_prompt):
+    
+    # 1. extract information from argument records
+    perk_url = fields.get("Link")
+    perk_name = fields.get("Name")
+
+    # 2. extract information with Firecrawl
+    print(f"Analyzing with method 1 - Firecrawl and gpt-4.1-nano")
+    scraped_text = scrape_website_with_firecrawl(perk_url)
+    
+    # 3. check if this is an active link - although the code is 200 we need to check if this is a closed form or an inactive page
+    if is_fake_200(scraped_text):
+        print("ERROR: Detected 404-like error inside page (closed form or inactive page)")
+        fields["Status"] = "broken/expired"
+    
+    else:
+
+        # 4. extract structured info with gpt-4.1-nano
+        structured_info_gpt = extract_with_gpt(gpt_prompt, scraped_text)
+        print_perks(structured_info_gpt)
+
+        # 5. if we still have missing information, use Perplexity Search
+        if any(value == "Not found" for value in structured_info_gpt.values()):
+            enriched_info = extract_with_perplexity(perk_url, perk_name, structured_info_gpt)
+            new_info = enriched_info
+        else:
+            new_info = structured_info_gpt
+
+        # update the value of fields (passed by reference)
+        for key, value in new_info.items():
+            if key in fields:  
+                fields[key] = value
+
+# 
+def handle_scraping(gpt_prompt, flag, records, update_type):
+
+    file_path = f'results_{update_type}_update/scraped_info.json'
+
+    if flag == 1:
+        # Run the scraping function
+        scraped_info = process_records(records, gpt_prompt)
+        
+        # Save the scraped information directly to a JSON file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(scraped_info, f, indent=2)
+        print(f"Data successfully saved to {file_path}")
+        
+        return scraped_info
+    
+    elif flag == 0:
+        # Read the scraped information from the JSON file
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                scraped_info = json.load(f)
+            print(f"Data successfully loaded from {file_path}")
+            
+            return scraped_info
+        else:
+            print(f"Warning: File {file_path} does not exist.")
+            return {}
+    else:
+        raise ValueError("Flag must be either 0 or 1")

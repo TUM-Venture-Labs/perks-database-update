@@ -6,20 +6,21 @@ from typing import Dict
 
 import config
 from src.gpt_extractor import extract_with_gpt
-from src.utils import print_perks
+import src.utils 
 
 os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 os.environ["PERPLEXITY_API_KEY"] = config.PERPLEXITY_API_KEY
 
 
-def extract_perk_info_perplexity(url, perk_name, gpt_info):
+def extract_with_perplexity(url, perk_name, gpt_info):
 
     print("\nAnalysing with method 2 - There is still missing info. Running Perplexity prompt...")
 
     # run perplexity search
     info_perplexity = run_perplexity_search(url, perk_name)
-    print_perks(info_perplexity)
-    print("\n")
+    #print("info_perplexity = ", info_perplexity)
+    #src.utils.print_perks(info_perplexity)
+    #print("\n")
 
     # combine additional information from perplexity with the one we already had from ChatGPT
     if info_perplexity:
@@ -36,7 +37,7 @@ def extract_perk_info_perplexity(url, perk_name, gpt_info):
         # If there are still missing fields, use the enrichment function
         final_info =  enrich_with_perplexity(gpt_perplexity_info, info_perplexity)
 
-        print_perks(final_info)
+        src.utils.print_perks(final_info)
         print("\n")
 
         return final_info
@@ -44,9 +45,11 @@ def extract_perk_info_perplexity(url, perk_name, gpt_info):
 
 def run_perplexity_search(url, perk_name):
 
+    print("url = ", url)
+    print("perk_name = ", perk_name)
+
     try:
-        
-        url = "https://api.perplexity.ai/chat/completions"
+        perplexity_api_url = "https://api.perplexity.ai/chat/completions"
         api_key = os.environ["PERPLEXITY_API_KEY"]
         
         # define the prompt for perplexity which extracts structured information
@@ -93,19 +96,33 @@ def run_perplexity_search(url, perk_name):
         }
         
         # run request using Perplexity
-        response = requests.request("POST", url, json=payload, headers=headers)
+        response = requests.request("POST", perplexity_api_url, json=payload, headers=headers)
         content = response.json()["choices"][0]["message"]["content"]
 
         try:
-            content_dict = json.loads(content)
-        except json.JSONDecodeError:
-            content_dict = {}
-
-        return content_dict
+            # Try to clean the content before parsing as JSON
+            # Sometimes LLMs add extra text before/after JSON
+            import re
+            json_pattern = r'({.*})'
+            match = re.search(json_pattern, content, re.DOTALL)
+            
+            if match:
+                clean_content = match.group(1)
+            else:
+                clean_content = content
+                
+            content_dict = json.loads(clean_content)
+            return content_dict
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            print(f"Content causing error: {content}")
+            # Return empty dict instead of empty string
+            return {}
 
     except Exception as e:
         print(f"Error with Perplexity search: {e}")
-        return ""
+        # Return empty dict instead of empty string
+        return {}
 
 
 def enrich_with_perplexity(info_gpt: Dict[str, str], info_perplexity: str) -> Dict[str, str]:

@@ -4,6 +4,11 @@ import time
 import json
 import config
 from typing import Dict
+from langfuse import Langfuse
+from langfuse.openai import OpenAI
+langfuse = Langfuse()
+
+
 from firecrawl import FirecrawlApp, ScrapeOptions
 
 os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
@@ -11,84 +16,63 @@ os.environ["FIRECRAWL_API_KEY"] = config.FIRECRAWL_API_KEY
 os.environ["PERPLEXITY_API_KEY"] = config.PERPLEXITY_API_KEY
 
 
-def scrape_website_with_firecrawl(url: str) -> str:
-    app = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
+def scrape_website_with_firecrawl(url: str) -> str | None:
+    """Scrapes the content of a given URL using Firecrawl."""
+    try:
+        app = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
-    # Crawl a website:
-    crawl_result = app.crawl_url(
-        url, limit=10, 
-        scrape_options=ScrapeOptions(formats=['markdown']),
-    )
+        # scrape website 
+        scraped_data = app.scrape_url(url)
 
-    # Concatenate all markdown content from each crawled page
-    all_text = "\n\n".join(doc.markdown for doc in crawl_result.data)
-    time.sleep(60)
-    #print(all_text)
+        if 'markdown' in scraped_data:
+            return scraped_data['markdown']
+        elif 'content' in scraped_data:
+             # Fallback to content if markdown is not available
+            return scraped_data['content']
+        else:
+            print("Error: Could not find 'markdown' or 'content' in scraped data.")
+            print(f"Scraped data keys: {scraped_data.keys()}")
+            return None
+    except Exception as e:
+        print(f"Error scraping URL {url} with Firecrawl: {e}")
+        return None
 
-    return all_text
 
-
-def extract_with_gpt(text: str) -> Dict[str, str]:
+def extract_with_gpt(prompt, scraped_text: str) -> Dict[str, str]:
 
     try:
-        # For this function to work, you need to set up the OpenAI API client
-        from openai import OpenAI
+        # For this function to work, you need to set up the OpenAI API client        
         client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         
-        prompt = f"""
-        You are an information extraction assistant.
+        # Stringify the JSON schema
+        json_schema_str = ', '.join([f"'{key}': {value}" for key, value in prompt.config["json_schema"].items()])
 
-        Given the text below, extract the following fields:
-
-        - "Provider Description": A very brief (1-2 sentences) description of the company or organization offering the perk.
-        - "What You Get": Summarize clearly what the perk provides (discount, credits, service, etc.).
-        - "How To Get It": Instructions on how someone can claim or access the perk.
-        - "Value": The financial value of the perk (in USD or EUR if available). If no value is clear, return "Not found".
-
-        **Important rules**:
-        - Do not invent missing information.
-        - If a field cannot be found, respond exactly with "Not found".
-        - Output only valid JSON, no commentary.
-        - The "Value" is a number, if not found write "Not found".
-
-        Text to analyze:
-        \"\"\"
-        {text[:15000]}  # Limit text size to avoid token limits
-        \"\"\"
-
-        Respond in this exact JSON format:
-        {{
-            "Brief description of the provider": "",
-            "What you get": "",
-            "How to get it": "",
-            "Value": ""
-        }}
-        """
-
-        response = client.chat.completions.create(
-            model="gpt-4.1-nano",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2
+        # Compile prompt with stringified version of json schema
+        system_message = prompt.compile(json_schema=json_schema_str)
+        
+        # Format as OpenAI messages
+        messages = [
+            {"role":"system","content": system_message},
+            {"role":"user","content":scraped_text}
+        ]
+        
+        # Get additional config
+        model = prompt.config["model"]
+        temperature = prompt.config["temperature"]
+        
+        # Execute LLM call
+        res = client.chat.completions.create(
+            model = model,
+            temperature = temperature,
+            messages = messages,
+            response_format = { "type": "json_object" },
+            langfuse_prompt = prompt # capture used prompt version in trace
         )
         
-        content = response.choices[0].message.content.strip()
+        # Parse response as JSON
+        res = json.loads(res.choices[0].message.content)
         
-        # Extract the JSON part only
-        try:
-            json_str = re.search(r"\{.*\}", content, re.DOTALL).group()
-            extracted = json.loads(json_str)
-        except Exception as e:
-            print(f"⚠️ Parsing error: {e}")
-            extracted = {
-                "Brief description of the provider": "Error parsing",
-                "What you get": "Error parsing",
-                "How to get it": "Error parsing",
-                "Value": "Error parsing"
-            }
-        
-        return extracted
+        return res
     except Exception as e:
         print(f"Error with GPT extraction: {e}")
         return {
