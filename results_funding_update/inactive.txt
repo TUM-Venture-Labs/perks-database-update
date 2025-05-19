@@ -1,0 +1,6 @@
+EXIST Women
+GO-Bio Initial "Sondierungsphase"
+ERC Starting Grant
+EXIST Forschungstransfer I
+EXIST Gründungsstipendium
+EXIST Forschungstransfer II

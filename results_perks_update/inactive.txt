@@ -1,0 +1,12 @@
+ACCPL
+Pleo
+ReferralFactory
+Twip
+
+GetPressAcademy
+
+Promyze
+Demodesk
+Crowdin
+Taledo
+Deutsche Leasing

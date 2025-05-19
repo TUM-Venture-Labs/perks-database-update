@@ -1,7 +1,6 @@
 import re
 import os
 import json
-import copy
 import requests
 from openai import OpenAI
 from bs4 import BeautifulSoup
@@ -10,7 +9,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import os
 import config
 from langfuse import Langfuse
 from langfuse.callback import CallbackHandler
@@ -62,33 +60,23 @@ def is_url_alive(url):
     except Exception:
         return False
 
-
-def access_page_with_cookies(url):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    
-    driver = webdriver.Chrome(options=chrome_options)
-    
+# Simple function to get the HTTP status code of a webpage and follow redirects. Handles SSL certificate issues on macOS.
+def get_page_status(url, timeout=10):
     try:
-        driver.get(url)
-        
+        # First try with normal verification, allowing redirects
+        response = requests.get(url, timeout=timeout, allow_redirects=True)
+        return response.status_code, response.url
+    except requests.exceptions.SSLError:
+        # If we get an SSL error, try with verification disabled
         try:
-            cookie_button = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Accept') or contains(text(), 'agree') or contains(text(), 'AGREE')]"))
-            )
-            cookie_button.click()
-            print("OK: Accepted cookies")
-        except:
-            print("INFO: No cookie banner detected")
-        
-        return 200
+            response = requests.get(url, verify=False, timeout=timeout, allow_redirects=True)
+            return response.status_code, response.url
+        except Exception as e:
+            print(f"Error checking {url}: {str(e)}")
+            return None, None
     except Exception as e:
-        print(f"INFO: Selenium failed: {e}")
-        return None
-    finally:
-        driver.quit()
+        print(f"Error checking {url}: {str(e)}")
+        return None, None
 
 
 def is_fake_200(scraped_text):
@@ -135,67 +123,21 @@ def is_fake_200(scraped_text):
         return 0
 
 
-def get_url_status_code(url):
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/112.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-    }
-    
-    session = requests.Session()
-    session.headers.update(headers)
-
-    try:
-        # HEAD request first
-        response = session.head(url, allow_redirects=True, timeout=5)
-        
-        # If HEAD gives bad result, retry GET anyway
-        if response.status_code >= 400:
-            print("ERROR: HEAD request failed or returned error, retrying with GET...")
-            response = session.get(url, allow_redirects=True, timeout=10)
-
-        # After GET:
-        if response.status_code == 404:
-            print("ERROR: 404 Not Found (confirmed by requests)")
-            return 404
-
-        if 400 <= response.status_code < 600 and response.status_code not in [401, 403, 405]:
-            print(f"ERROR: HTTP error {response.status_code} (confirmed by requests)")
-            return response.status_code
-
-        # If GET gives suspicious access issue
-        if response.status_code in [401, 403, 405]:
-            print("ERROR: Access issue detected (GET), trying with Selenium...")
-            selenium_result = access_page_with_cookies(url)
-            return selenium_result
-        
-        
-        return response.status_code
-    except requests.RequestException as e:
-        print(f"ERROR: Requests failed: {e}")
-        # As fallback, use Selenium
-        return access_page_with_cookies(url)
-
-
 ############# Methods to save to local directory
-def save_perks_status(perks_wo_link, perks_active, perks_inactive, perks_updated):
+def save_records_status(records_wo_link, records_active, records_inactive, records_updated, update_type):
     # Ensure the results directory exists
-    dir = 'results_perks_update/'
+    dir = f'results_{update_type}_update/'
     os.makedirs(dir, exist_ok=True)
 
     # Names of files to save the values
-    perks_names = ['perks_wo_link', 'perks_active', 'perks_inactive', 'perks_updated']
+    names = ['wo_link', 'active', 'inactive', 'updated']
 
-    for i, perks in enumerate([perks_wo_link, perks_active, perks_inactive, perks_updated]):
+    for i, records in enumerate([records_wo_link, records_active, records_inactive, records_updated]):
         # Fallback to empty list if None is passed
-        if perks is None:
-            perks = []
-        with open(f'{dir}{perks_names[i]}.txt', 'w', encoding='utf-8') as f:
-            for item in perks:
+        if records is None:
+            records = []
+        with open(f'{dir}{names[i]}.txt', 'w', encoding='utf-8') as f:
+            for item in records:
                 # Only write non-None items, and always write as string
                 if item is not None:
                     f.write(f"{str(item)}\n")
@@ -203,13 +145,13 @@ def save_perks_status(perks_wo_link, perks_active, perks_inactive, perks_updated
 
 #####################
 # main status processing logic - loop over airtable rows
-def process_records(records, gpt_prompt):
+def process_records(records, gpt_prompt, update_type):
 
-    perks_wo_link  = []
-    perks_w_email  = []
-    perks_active   = []
-    perks_inactive = []
-    perks_updated  = []
+    records_wo_link  = []
+    records_w_email  = []
+    records_active   = []
+    records_inactive = []
+    records_changed  = []
 
     # dict with the info to be scraped and updated on airtable
     updated_records = {record['id']: record.copy() for record in records}
@@ -217,76 +159,84 @@ def process_records(records, gpt_prompt):
     # loop over each record (row on airtable)
     for record in records:
         fields    = record.get('fields', {})
-        perk_id   = record.get('id')
-        perk_name = fields.get("Name")
-        perk_url  = fields.get("Link")
-        current_status = fields.get("Status", "").lower()  
+        id   = record.get('id')
+        name = fields.get("Name")
+        url  = fields.get("Link")
+
+        if update_type == 'funding':
+            current_status = "active" 
+        elif update_type == 'perks':
+            current_status = fields.get("Status", "").lower()  
         
-        print(f"\n{'-' * 75}\nAnalyzing perk: {perk_name}")
+        print(f"\n{'-' * 75}\nAnalyzing {update_type}: {name}")
 
         # Skip if already marked as broken/expired
         if current_status == "broken/expired":
             print("INFO: Record already marked as broken/expired. ")
             # Still count it in the inactive list for reporting
-            perks_inactive.append(perk_name)
-            updated_records[perk_id]['fields']["Status"] = "broken/expired"
+            records_inactive.append(name)
+            updated_records[id]['fields']["Status"] = "broken/expired"
             continue
 
         # Case 1: No URL available
-        if not perk_url:
+        if not url:
             print("INFO: No URL available on Airtable. ")
-            perks_wo_link.append(perk_name)
+            records_wo_link.append(name)
             continue
         
         # Case 2: URL is actually an email address
-        if is_email(perk_url):
+        if is_email(url):
             print("INFO: No URL available on Airtable. ")
-            perks_w_email.append(perk_name)
-            perks_wo_link.append(perk_name)
+            records_w_email.append(name)
+            records_wo_link.append(name)
             continue
 
         # Case 3: URL available but missing http
-        if not perk_url.startswith(('http://', 'https://')):
-            perk_url = 'http://' + perk_url
-            fields["Link"] = perk_url
+        if not url.startswith(('http://', 'https://')):
+            url = 'http://' + url
+            fields["Link"] = url
 
-        # Check URL status (200 if active)
-        status_code = get_url_status_code(perk_url)
+        # Making a get request
+        status_code, final_url = get_page_status(url)#response.status_code # get_url_status_code(url)
 
         if status_code == 200:
             print(f"OK: Link is active (Status Code: {status_code})")
             
             if current_status != "active":
-                updated_records[perk_id]['fields']["Status"] = "active"
-                perks_active.append(perk_name)
-                perks_updated.append(perk_name)  # Only append if status changed
+                updated_records[id]['fields']["Status"] = "active"
+                records_changed.append(name) # Only append if status changed
 
-            perks_active.append(perk_name)
+            records_active.append(name)
 
             # Online scrape the website if the link is active: pass 'results' dict by reference and modify it
-            scrape(updated_records[perk_id]['fields'], gpt_prompt)
+            scrape(updated_records[id]['fields'], gpt_prompt)
 
+        # redirect status code
+        elif status_code == 403:
+            print(f"WARNING: Link is redirecting to new page. Updating link on Airtable... (Status Code: {status_code})")
+            updated_records[id]['fields']["Link"] = final_url
+        
         elif status_code is None:
             print(f"ERROR: Failed to reach URL (Status Code: {status_code})")
 
             if current_status != "broken/expired":
-                updated_records[perk_id]['fields']["Status"] = "broken/expired"
-                perks_updated.append(perk_name)
+                updated_records[id]['fields']["Status"] = "broken/expired"
+                records_changed.append(name) # Only append if status changed
 
-            perks_inactive.append(perk_name)
+            records_inactive.append(name)
 
         else:
             print(f"ERROR: Link is inactive (Status Code: {status_code})")
 
             if current_status != "broken/expired":
-                updated_records[perk_id]['fields']["Status"] = "broken/expired"
-                perks_updated.append(perk_name)
+                updated_records[id]['fields']["Status"] = "broken/expired"
+                records_changed.append(name)
 
-            perks_inactive.append(perk_name)
+            records_inactive.append(name)
         
         print(f"{'-' * 75}")
 
-    save_perks_status(perks_wo_link, perks_active, perks_inactive, perks_updated)
+    save_records_status(records_wo_link, records_active, records_inactive, records_changed, update_type)
 
     return updated_records
 
@@ -294,12 +244,12 @@ def process_records(records, gpt_prompt):
 def scrape(fields, gpt_prompt):
     
     # 1. extract information from argument records
-    perk_url = fields.get("Link")
-    perk_name = fields.get("Name")
+    url = fields.get("Link")
+    name = fields.get("Name")
 
     # 2. extract information with Firecrawl
     print(f"Analyzing with method 1 - Firecrawl and gpt-4.1-nano")
-    scraped_text = scrape_website_with_firecrawl(perk_url)
+    scraped_text = scrape_website_with_firecrawl(url)
     
     # 3. check if this is an active link - although the code is 200 we need to check if this is a closed form or an inactive page
     if is_fake_200(scraped_text):
@@ -314,15 +264,18 @@ def scrape(fields, gpt_prompt):
 
         # 5. if we still have missing information, use Perplexity Search
         if any(value == "Not found" for value in structured_info_gpt.values()):
-            enriched_info = extract_with_perplexity(perk_url, perk_name, structured_info_gpt)
+            enriched_info = extract_with_perplexity(url, name, structured_info_gpt, gpt_prompt)
             new_info = enriched_info
         else:
             new_info = structured_info_gpt
 
         # update the value of fields (passed by reference)
-        for key, value in new_info.items():
-            if key in fields:  
-                fields[key] = value
+        if new_info is not None:  # Add this check to prevent the error
+            for key, value in new_info.items():
+                if key in fields:  
+                    fields[key] = value
+        else:
+            print(f"Warning: No information retrieved for {fields.get('name', 'unknown perk')}")
 
 # 
 def handle_scraping(gpt_prompt, flag, records, update_type):
@@ -331,7 +284,7 @@ def handle_scraping(gpt_prompt, flag, records, update_type):
 
     if flag == 1:
         # Run the scraping function
-        scraped_info = process_records(records, gpt_prompt)
+        scraped_info = process_records(records, gpt_prompt, update_type)
         
         # Save the scraped information directly to a JSON file
         with open(file_path, 'w', encoding='utf-8') as f:

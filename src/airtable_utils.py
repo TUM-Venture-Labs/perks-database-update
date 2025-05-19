@@ -60,3 +60,39 @@ def update_perks_info(table, scraped_info):
             print(f"Failed to update {record_id}: {str(e)}")
     
     return results
+
+
+# updates fields on airtable with the info extracted from crawling (perk description, value, etc)
+def update_funding_info(table, scraped_info):
+    print(f"\n{'-' * 75}\nUpdating perks info on Airtable...\n{'-' * 75}")
+    results = {}
+    
+    for record_id, record_info in scraped_info.items():
+        # Initialize result entry for this record
+        results[record_id] = {}
+        
+        try:
+            # Get the fields from the record_info
+            record_fields = record_info.get("fields", {})
+            
+            # Create the fields dict by looping over keys in record_fields
+            # This automatically maps field names to Airtable columns with the same name
+            fields = {}
+            for key, value in record_fields.items():
+                # Handle the Value field specially if needed
+                if key == "Attachment Summary" and value is not None:
+                    fields[key] = str(value)
+                else:
+                    fields[key] = value
+            
+            # Add the Last edited time field
+            fields["Last edited time"] = datetime.now().strftime("%Y-%m-%d")
+            
+            # Update existing record
+            table.update(record_id, fields)
+            
+        except Exception as e:
+            results[record_id]["error"] = str(e)
+            print(f"Failed to update {record_id}: {str(e)}")
+    
+    return results

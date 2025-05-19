@@ -7,6 +7,7 @@ from src.utils import handle_scraping
 from src.airtable_utils import get_records, update_perks_info
 from langfuse import Langfuse
 from langfuse.openai import OpenAI
+
 langfuse = Langfuse()
 
 # get perplexity API key and add it to the environment variables
