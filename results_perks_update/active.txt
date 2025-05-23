@@ -1,62 +1,7 @@
-Miro
-AWS
-Recruitee
-HubSpot
-GitHub
-Raketenstart
-
-Alconost
-Google
-
-LiveChat
-MixPanel
-tm matchboxx
-SEM Rush
-WorkMotion
-CloudFlare
-TwoStay
-Userlist
-Stripe
-IONOS
-Allcancode
-Lexoffice
-Ecomply
-TUM Entrepreneurship Guide
-Personio
-AWS 
 Telekom TechBoost
-Google Cloud
-DigitalOcean Hatch
-DoxyChain
-Finom
-Mathworks
-Lightbringer
-MongoDB
-IBM Startup Program
-HubSpot
-Microsoft Azure
-Personio
-Altair
-Vonage
-ContarctBook
 UnternehmerTUM
-Matchbox
-SectorPi
-Notion
-Microsoft
-
-UFI
-
-StaffBoard
-Amazon Business 
 Your Service?
-Pipedrive
-
+IONOS
 AWS
-BesserDrei
-Skinnovation
-
-Stax
-Makerspace
-Tally
-Autenti
+IBM Startup Program
+DigitalOcean Hatch
