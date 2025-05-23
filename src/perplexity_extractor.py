@@ -1,6 +1,7 @@
 import re
 import os
 import json
+import time
 import requests
 from typing import Dict
 from langfuse import Langfuse
@@ -19,31 +20,34 @@ os.environ["LANGFUSE_SECRET_KEY"] = config.LANGFUSE_SECRET_KEY
 os.environ["LANGFUSE_HOST"] = config.LANGFUSE_HOST
 os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 
+############# Handle printing
+def print_perks(perks):
+    if perks is None:  
+        print("Error: Data is None. No data to display.")
+        return 
+    
+    for key, value in perks.items():
+        line = f"{key}: {value}"
+        print(f'{line[:100]}')  
 
-def extract_with_perplexity(url, perk_name, gpt_info, gpt_prompt):
+
+def extract_with_perplexity(url, name, gpt_info, gpt_prompt):
 
     print("\nAnalysing with method 2 - There is still missing info. Running Perplexity prompt...")
 
     # run perplexity search
-    info_perplexity = run_perplexity_search(url, perk_name, gpt_prompt)
+    info_perplexity = run_perplexity_search(url, name, gpt_prompt)
+    #print_perks(info_perplexity)
 
     # combine additional information from perplexity with the one we already had from ChatGPT
     if info_perplexity:
-        # Combine all text for final extraction
-        combined_text = (
-            json.dumps(gpt_info, indent=2)
-            + "\n\nAdditional information from Perplexity search:\n"
-            + json.dumps(info_perplexity, indent=2)
-        )
 
-        # Re-extract with all available information
-        gpt_perplexity_info = extract_with_gpt(combined_text)
-        
-        # If there are still missing fields, use the enrichment function
-        final_info =  enrich_with_perplexity(gpt_perplexity_info, info_perplexity, gpt_prompt)
+        # Combine the information from GPT and Perplexity
+        print("\nCombining information from GPT and Perplexity...")
+        final_info =  enrich_with_perplexity(gpt_info, info_perplexity, gpt_prompt)
 
-        src.utils.print_perks(final_info)
-        print("\n")
+        #src.utils.print_perks(final_info)
+        #print("\n")
 
         return final_info
 
@@ -68,15 +72,33 @@ def convert_to_json_schema(field_descriptions):
 
 
 def run_perplexity_search(url, name, gpt_prompt):    
-
     # 1. Get your schema dictionary from gpt_prompt
     field_descriptions = gpt_prompt.config["json_schema"]
 
-    # 2. Convert to valid JSON Schema
-    perplexity_json_schema = convert_to_json_schema(field_descriptions)
-
+    # 2. Build proper JSON Schema structure
+    properties = {}
+    for field_name, description in field_descriptions.items():
+        # Convert string descriptions to proper JSON Schema format
+        if "number" in description.lower():
+            properties[field_name] = {
+                "type": "number",
+                "description": description
+            }
+        else:
+            properties[field_name] = {
+                "type": "string", 
+                "description": description
+            }
+    
+    perplexity_json_schema = {
+        "schema": {
+            "type": "object",
+            "properties": properties,
+            "required": list(field_descriptions.keys())
+        }
+    }
+        
     try:
-
         # 3. Prepare the payload
         payload = {
             "model": "sonar-pro",
@@ -85,25 +107,23 @@ def run_perplexity_search(url, name, gpt_prompt):
                     "role": "system",
                     "content": (
                         "You are a research assistant that finds detailed, factual information about startup perks, discounts, and special offers. "
-                        "Be concise keeping each field to 1 to 2 sentences maximum."
+                        "Be concise keeping each field to 1 to 2 sentences maximum. "
+                        "Respond only with valid JSON, no extra text."
                     )
                 },
                 {
                     "role": "user",
                     "content": (
-                        f"Combine the information found at this URL: {url} with the most current, factual information from online sources about the following startup perk or funding in the German ecosystem:\n"
-                        f"\"{name}\"\n\n"
-                        "Focus on offers from XPRENEURS, XPLORE, TechFounders, TUM Venture Labs, UVC, or relevant public programs.\n"
-                        "If a field is missing from all sources, write \"Not found\".\n"
-                        "Use 1–2 sentences per field. Output only valid JSON matching the provided schema-no commentary, code blocks, or extra text.\n"
-                        "The \"Value\" field must be a numeric monetary amount, or \"Not found\"."
+                        f"Research this URL: {url} and find current information about: {name}\n\n"
+                        "Focus on German startup ecosystem offers from XPRENEURS, XPLORE, TechFounders, TUM Venture Labs, UVC, or public programs.\n"
+                        "If information is missing, write \"Not found\".\n"
+                        "Return only valid JSON matching the schema."
                     )
-
                 }
             ],
             "response_format": {
                 "type": "json_schema",
-                "json_schema": perplexity_json_schema,
+                "json_schema": perplexity_json_schema
             }
         }
 
@@ -113,31 +133,49 @@ def run_perplexity_search(url, name, gpt_prompt):
             "Content-Type": "application/json"
         }
         
-        response = requests.post("https://api.perplexity.ai/chat/completions", json=payload, headers=headers)
-        content = response.json()["choices"][0]["message"]["content"]
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions", 
+            json=payload, 
+            headers=headers,
+            timeout=60
+        )
+        
+        # Check if request was successful
+        if response.status_code != 200:
+            print(f"API Error {response.status_code}: {response.text}")
+            return {}
+        
+        # Get the response content
+        response_data = response.json()
+        content = response_data["choices"][0]["message"]["content"]
 
-
+        # Parse JSON response
         try:
-            # Try to clean the content before parsing as JSON. Sometimes LLMs add extra text before/after JSON
-            json_pattern = r'({.*})'
-            match = re.search(json_pattern, content, re.DOTALL)
+            # Clean content if needed
+            clean_content = content.strip()
             
-            if match:
-                clean_content = match.group(1)
-            else:
-                clean_content = content
-                
+            # Remove code blocks if present
+            if clean_content.startswith("```"):
+                clean_content = re.sub(r'```[a-z]*\n?', '', clean_content)
+                clean_content = clean_content.replace('```', '')
+            
+            # Try to extract JSON object
+            json_match = re.search(r'(\{.*\})', clean_content, re.DOTALL)
+            if json_match:
+                clean_content = json_match.group(1)
+            
+            # Parse JSON
             content_dict = json.loads(clean_content)
+            print("Successfully extracted information with Perplexity.\n")
             return content_dict
+            
         except json.JSONDecodeError as e:
-            print(f"JSON decode error: {e}")
-            print(f"Content causing error: {content}")
-            # Return empty dict instead of empty string
+            print(f"JSON parse error: {e}")
+            print(f"Failed content: {repr(clean_content)}")
             return {}
 
     except Exception as e:
         print(f"Error with Perplexity search: {e}")
-        # Return empty dict instead of empty string
         return {}
 
 
@@ -149,7 +187,17 @@ def enrich_with_perplexity(json_gpt, json_perplexity, gpt_prompt):
 
         # Get current `production` version of a text prompt
         prompt = langfuse.get_prompt("join_chat_gpt_perplexity_answers")
+        
+        # Config handling with defaults
+        if not prompt.config:
+            prompt.config = {
+                "model": "gpt-4.1-nano",
+                "temperature": 0
+            }
 
+        model = prompt.config["model"]
+        temperature = prompt.config["temperature"]
+        
         # Stringify the JSON schema
         json_schema_str = ', '.join([f"'{key}': {value}" for key, value in gpt_prompt.config["json_schema"].items()])
         json_perplexity_str = ', '.join([f"'{key}': {value}" for key, value in json_perplexity.items()])
@@ -170,8 +218,8 @@ def enrich_with_perplexity(json_gpt, json_perplexity, gpt_prompt):
         
         # Execute LLM call
         res = client.chat.completions.create(
-            model       = prompt.config["model"],
-            temperature = prompt.config["temperature"],
+            model       = model,
+            temperature = temperature,
             messages    = messages,
             response_format = { "type": "json_object" },
             langfuse_prompt = prompt # capture used prompt version in trace

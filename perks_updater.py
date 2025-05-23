@@ -20,8 +20,6 @@ table = Table(
     config.AIRTABLE_TABLE_ID_PERKS
 )
 
-process_records_flag = 1
-
 
 def print_hello():
     """Print a concise and visually appealing explanation of the program."""
@@ -51,6 +49,7 @@ if __name__ == "__main__":
 
     # program opening
     print_hello()
+    process_records_flag = 0
 
     # 1. extract perk database table from airtable
     current_records = get_records(table)
@@ -60,5 +59,6 @@ if __name__ == "__main__":
     updated_records = handle_scraping(gpt_prompt, process_records_flag, current_records, update_type = "perks")
     
     # 3. update airtable with the new info
-    update_perks_info(table, updated_records)
+    entries_to_update = gpt_prompt.config["json_schema"].keys()
+    update_perks_info(table, updated_records, entries_to_update)
 

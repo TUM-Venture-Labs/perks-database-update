@@ -60,12 +60,11 @@ if __name__ == "__main__":
     # 2. Get current prompt version from Langfuse
     process_records_flag = 1
     gpt_prompt = langfuse.get_prompt("extract_funding_info_from_url")
-    print(gpt_prompt.prompt)
-    print(gpt_prompt.config["json_schema"])
 
     # 3. Loop over URL's on airtable and crawl for content using Firecrawl. Use gpt_promp from langfuse to gather info
     updated_records = handle_scraping(gpt_prompt, process_records_flag, current_records, update_type = "funding")
     
     # 4. update airtable with the new info
-    update_funding_info(table, updated_records)
+    entries_to_update = gpt_prompt.config["json_schema"].keys()
+    update_funding_info(table, updated_records, entries_to_update)
 

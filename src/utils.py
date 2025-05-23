@@ -38,12 +38,12 @@ from src.perplexity_extractor import extract_with_perplexity
 ############# Handle printing
 def print_perks(perks):
     if perks is None:  
-        print("Error: Perks data is None. No data to display.")
+        print("Error: Data is None. No data to display.")
         return 
     
     for key, value in perks.items():
         line = f"{key}: {value}"
-        print(f'{line[:100]}...')  
+        print(f'{line[:100]}')  
 
 
 ############# Logic to analyse URLs
@@ -200,7 +200,7 @@ def process_records(records, gpt_prompt, update_type):
         status_code, final_url = get_page_status(url)#response.status_code # get_url_status_code(url)
 
         if status_code == 200:
-            print(f"OK: Link is active (Status Code: {status_code})")
+            print(f"OK: Link is active (Status Code: {status_code})\n")
             
             if current_status != "active":
                 updated_records[id]['fields']["Status"] = "active"
@@ -209,15 +209,20 @@ def process_records(records, gpt_prompt, update_type):
             records_active.append(name)
 
             # Online scrape the website if the link is active: pass 'results' dict by reference and modify it
-            scrape(updated_records[id]['fields'], gpt_prompt)
+            updated_records[id]['fields'] = scrape(updated_records[id]['fields'], gpt_prompt)
 
         # redirect status code
         elif status_code == 403:
             print(f"WARNING: Link is redirecting to new page. Updating link on Airtable... (Status Code: {status_code})")
+            
+            # update the link on airtable
             updated_records[id]['fields']["Link"] = final_url
+            
+            # scrape the new page
+            updated_records[id]['fields'] = scrape(updated_records[id]['fields'], gpt_prompt)
         
         elif status_code is None:
-            print(f"ERROR: Failed to reach URL (Status Code: {status_code})")
+            print(f"INFO: Failed to reach URL (Status Code: {status_code})")
 
             if current_status != "broken/expired":
                 updated_records[id]['fields']["Status"] = "broken/expired"
@@ -226,7 +231,7 @@ def process_records(records, gpt_prompt, update_type):
             records_inactive.append(name)
 
         else:
-            print(f"ERROR: Link is inactive (Status Code: {status_code})")
+            print(f"INFO: Link is inactive (Status Code: {status_code})")
 
             if current_status != "broken/expired":
                 updated_records[id]['fields']["Status"] = "broken/expired"
@@ -242,25 +247,32 @@ def process_records(records, gpt_prompt, update_type):
 
 # recieves all active perks, scrapes the websites and returns a dict with the desired info
 def scrape(fields, gpt_prompt):
+
+    current_info = fields.copy()
     
     # 1. extract information from argument records
-    url = fields.get("Link")
-    name = fields.get("Name")
+    url = current_info.get("Link")
+    name = current_info.get("Name")
 
     # 2. extract information with Firecrawl
     print(f"Analyzing with method 1 - Firecrawl and gpt-4.1-nano")
     scraped_text = scrape_website_with_firecrawl(url)
+
+    # Check if scraped_text is None and return fields if so
+    if scraped_text is None:
+        print(f"Warning: Failed to scrape content for {name}")
+        return fields
     
     # 3. check if this is an active link - although the code is 200 we need to check if this is a closed form or an inactive page
     if is_fake_200(scraped_text):
         print("ERROR: Detected 404-like error inside page (closed form or inactive page)")
-        fields["Status"] = "broken/expired"
+        current_info["Status"] = "broken/expired"
     
     else:
 
         # 4. extract structured info with gpt-4.1-nano
         structured_info_gpt = extract_with_gpt(gpt_prompt, scraped_text)
-        print_perks(structured_info_gpt)
+        #print_perks(structured_info_gpt)
 
         # 5. if we still have missing information, use Perplexity Search
         if any(value == "Not found" for value in structured_info_gpt.values()):
@@ -268,12 +280,14 @@ def scrape(fields, gpt_prompt):
             new_info = enriched_info
         else:
             new_info = structured_info_gpt
-
+        print_perks(new_info)
+        
         # update the value of fields (passed by reference)
         if new_info is not None:  # Add this check to prevent the error
-            for key, value in new_info.items():
+            return new_info
+            """for key, value in new_info.items():
                 if key in fields:  
-                    fields[key] = value
+                    fields[key] = value"""
         else:
             print(f"Warning: No information retrieved for {fields.get('name', 'unknown perk')}")
 
